@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <title>Monitor Fluvial & Clima PWA</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0056b3"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif; /* Usando Inter como solicitado */
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            background: #e9ecef;
+            color: #333;
+        }
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            justify-content: center;
+        }
+        .container {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: background 0.5s ease;
+            flex: 1;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+        }
+        .container h1, .container h2 {
+            color: #0056b3;
+            margin-top: 0;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        #alarmeBtn {
+            padding: 12px 22px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        #alarmeBtn:hover {
+            background: #218838;
+        }
+        .alarme-ativo { background: #dc3545 !important; }
+        .alarme-ativo:hover { background: #c82333 !important; }
+        .grafico-container {
+            padding: 0;
+            border-radius: 8px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+        }
+        .clima-section {
+            margin-top: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .clima-section h2 {
+            font-size: 1.2em;
+            color: #007bff;
+            border-bottom: none;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            width: calc(100% - 22px);
+            box-sizing: border-box;
+        }
+        button.search-btn {
+            padding: 10px 18px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 5px;
+        }
+        button.search-btn:hover {
+            background: #0056b3;
+        }
+        #weatherResult p, #fixedWeatherResult p {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        #rainAlert {
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .rain-detected {
+            background-color: #cfe2ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+        .icon {
+            margin-right: 8px;
+            font-size: 1.1em;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .container {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+    <script>
+        // Registra o Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Alterado o caminho do Service Worker para ser um caminho absoluto
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado com sucesso:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Falha no registro do Service Worker:', error);
+                    });
+            });
+        }
+
+        let fluvialChart;
+        let historicoGrafico = []; // Histórico de dados para o gráfico fluvial
+        let alarmeAtivo = false;
+        let audioCtx;
+        let oscillator;
+        const apiKeyOpenWeather = "e94e44b2281dc3ead1df4f95175b95a5"; // Chave da API OpenWeatherMap
+
+        // Variáveis para simulação de dados do ESP32
+        let simulatedNivelRio = 30.0;
+        let simulatedRainDetected = false;
+        let lastRainToggleTime = Date.now();
+        const rainToggleInterval = 15000; // Alterna chuva a cada 15 segundos (para simulação)
+
+        // Função para simular os dados do ESP32
+        function getSimulatedFluvialData() {
+            // Simula o nível do rio com pequenas variações
+            simulatedNivelRio += (Math.random() - 0.5) * 2; // Variação de -1 a +1 cm
+            simulatedNivelRio = Math.max(0, Math.min(60, simulatedNivelRio)); // Limita entre 0 e 60 cm
+
+            // Simula a detecção de chuva
+            if (Date.now() - lastRainToggleTime > rainToggleInterval) {
+                simulatedRainDetected = !simulatedRainDetected;
+                lastRainToggleTime = Date.now();
+            }
+
+            const alturaSensor = 66.0; // Distância do sensor ao fundo do rio/canal quando vazio (cm)
+            const alturaMaxima = 40.0; // Altura máxima considerada normal antes de transbordar (cm)
+
+            const percentualNivel = (simulatedNivelRio / alturaMaxima) * 100;
+
+            let statusRio = "";
+            if(percentualNivel >= 100) {
+                statusRio = "ALAGAMENTO 🚨";
+            } else if(percentualNivel <= 50) {
+                statusRio = "NORMAL ✅";
+            } else if(percentualNivel <= 75) {
+                statusRio = "ATENÇÃO ⚠️";
+            } else if(percentualNivel <= 90) {
+                statusRio = "ALERTA ⚠️⚠️";
+            } else { // Entre 90% e 100%
+                statusRio = "CRÍTICO ❗❗";
+            }
+
+            return {
+                nivel_cm: simulatedNivelRio,
+                porcentagem: percentualNivel,
+                status: statusRio,
+                rain_detected: simulatedRainDetected
+            };
+        }
+
+        // Funções do Monitor Fluvial
+        function atualizarCorFundoStatus(porcentagem) {
+            const container = document.querySelector('.container.fluvial-monitor');
+            if (!container) return;
+
+            if (porcentagem < 50) {
+                container.style.background = 'linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%)';
+            } else if (porcentagem < 75) {
+                container.style.background = 'linear-gradient(135deg, #fffde7 0%, #ffffff 100%)';
+            } else if (porcentagem < 90) {
+                container.style.background = 'linear-gradient(135deg, #fff3e0 0%, #ffffff 100%)';
+            } else {
+                container.style.background = 'linear-gradient(135deg, #ffebee 0%, #ffffff 100%)';
+            }
+        }
+
+        function tocarAlarme(nivel) {
+            if (!alarmeAtivo || !audioCtx) return;
+
+            if (oscillator) {
+                try { oscillator.stop(); } catch (e) {console.error("Erro ao parar oscilador:", e);}
+                oscillator.disconnect();
+            }
+
+            oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.15;
+
+            let freq = 440;
+            let duration = 0.5;
+            let type = 'sine';
+
+            switch (true) {
+                case (nivel >= 100):
+                    freq = 1000; duration = 0.2; type = 'square'; break;
+                case (nivel >= 90):
+                    freq = 800; duration = 0.3; type = 'sawtooth'; break;
+                case (nivel >= 75):
+                    freq = 600; duration = 0.4; break;
+                case (nivel >= 50):
+                    freq = 400; duration = 0.5; break;
+                default: return;
+            }
+
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            oscillator.connect(gainNode).connect(audioCtx.destination);
+            oscillator.start();
+            try { oscillator.stop(audioCtx.currentTime + duration); } catch (e) {console.error("Erro ao parar oscilador:", e);}
+        }
+
+        function atualizarDadosFluvial() {
+            // Usa dados simulados em vez de fetch para o PWA
+            const data = getSimulatedFluvialData();
+
+            const nivelAtualPorcentagem = parseFloat(data.porcentagem);
+            let subindo = false;
+
+            if (historicoGrafico.length > 0) {
+                const nivelAnteriorPorcentagem = historicoGrafico[historicoGrafico.length - 1];
+                if (nivelAtualPorcentagem > nivelAnteriorPorcentagem) {
+                    subindo = true;
+                }
+            }
+
+            historicoGrafico.push(nivelAtualPorcentagem);
+            if (historicoGrafico.length > 30) historicoGrafico.shift();
+
+            fluvialChart.data.datasets[0].data = historicoGrafico;
+
+            if (subindo && nivelAtualPorcentagem > 0) {
+                fluvialChart.data.datasets[0].fill = 'start';
+                fluvialChart.data.datasets[0].backgroundColor = 'rgba(0, 0, 139, 0.4)';
+            } else {
+                fluvialChart.data.datasets[0].fill = false;
+            }
+            fluvialChart.update('none');
+
+            document.getElementById('nivel').textContent = data.nivel_cm.toFixed(1);
+            document.getElementById('porcentagem').textContent = nivelAtualPorcentagem.toFixed(1);
+            document.getElementById('status').innerHTML = data.status;
+
+            atualizarCorFundoStatus(nivelAtualPorcentagem);
+
+            if (nivelAtualPorcentagem >= 50 && alarmeAtivo) {
+                tocarAlarme(nivelAtualPorcentagem);
+            }
+
+            const rainAlertElement = document.getElementById('rainAlert');
+            if (data.rain_detected) {
+                rainAlertElement.textContent = "💧 Umidade detectada!";
+                rainAlertElement.className = 'rain-detected';
+                rainAlertElement.style.display = 'block';
+            } else {
+                rainAlertElement.style.display = 'none';
+            }
+        }
+
+        function toggleAlarme() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.error("AudioContext não suportado.", e);
+                    // Usar um modal personalizado em vez de alert()
+                    const modal = document.createElement('div');
+                    modal.style.cssText = `
+                        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                        z-index: 1000; text-align: center;
+                    `;
+                    modal.innerHTML = `
+                        <p>Seu navegador não suporta os alarmes sonoros.</p>
+                        <button onclick="this.parentNode.remove()" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">OK</button>
+                    `;
+                    document.body.appendChild(modal);
+                    return;
+                }
+            }
+
+            alarmeAtivo = !alarmeAtivo;
+            const alarmeBtn = document.getElementById('alarmeBtn');
+            alarmeBtn.classList.toggle('alarme-ativo', alarmeAtivo);
+            alarmeBtn.innerHTML = alarmeAtivo ? '<span class="icon">🔊</span> Alarmes Ativados' : '<span class="icon">🔇</span> Ativar Alarmes';
+
+            if (!alarmeAtivo && oscillator) {
+                try { oscillator.stop(); } catch (e) {console.error("Erro ao parar oscilador:", e);}
+                oscillator.disconnect();
+            }
+        }
+
+        // Funções do Clima
+        async function fetchWeatherData(city, elementId) {
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKeyOpenWeather}&units=metric&lang=pt_br`;
+            const resultElement = document.getElementById(elementId);
+            resultElement.innerHTML = '<p>Carregando dados climáticos...</p>';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    if (response.status === 404) throw new Error("Cidade não encontrada.");
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                const data = await response.json();
+                resultElement.innerHTML = `
+                    <p><span class="icon">🌡️</span> Temperatura: ${data.main.temp.toFixed(1)}°C (Sensação: ${data.main.feels_like.toFixed(1)}°C)</p>
+                    <p><span class="icon">☁️</span> Condição: ${data.weather[0].description}</p>
+                    <p><span class="icon">💧</span> Umidade: ${data.main.humidity}%</p>
+                    <p><span class="icon">🌬️</span> Vento: ${data.wind.speed.toFixed(1)} m/s</p>
+                    <p><span class="icon">🧭</span> Pressão: ${data.main.pressure} hPa</p>
+                `;
+            } catch (error) {
+                resultElement.innerHTML = `<p style="color: red;">Erro: ${error.message}</p>`;
+                console.error(`Erro ao buscar clima para ${city}:`, error);
+            }
+        }
+
+        function getWeatherSearchable() {
+            const city = document.getElementById("cityInput").value;
+            if (city.trim() === "") {
+                document.getElementById("searchableWeatherResult").innerHTML = `<p style="color: orange;">Por favor, digite o nome da cidade.</p>`;
+                return;
+            }
+            fetchWeatherData(city, "searchableWeatherResult");
+        }
+
+        // Inicialização
+        window.onload = function() {
+            // Gráfico Fluvial
+            const ctx = document.getElementById('graficoFluvial').getContext('2d');
+            fluvialChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(30).fill(''),
+                    datasets: [{
+                        label: 'Nível do Rio (%)',
+                        data: historicoGrafico,
+                        borderColor: '#007bff',
+                        borderWidth: 2.5,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#007bff',
+                        tension: 0.3,
+                        fill: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 800,
+                        easing: 'easeInOutQuart'
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 120,
+                            ticks: {
+                                stepSize: 20,
+                                color: '#555'
+                            },
+                            grid: { color: 'rgba(0,0,0,0.08)' }
+                        },
+                        x: {
+                            display: false,
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#333' }
+                        }
+                    }
+                }
+            });
+
+            // Busca dados fluviais simulados e configura intervalo
+            atualizarDadosFluvial();
+            setInterval(atualizarDadosFluvial, 2500);
+
+            // Busca clima da cidade fixa (Novo Horizonte, SP)
+            fetchWeatherData("Novo Horizonte, BR", "fixedWeatherResult");
+
+            // Adiciona listener para tecla Enter no campo de busca de cidade
+            document.getElementById("cityInput").addEventListener("keypress", function(event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    getWeatherSearchable();
+                }
+            });
+        };
+    </script>
+</head>
+<body>
+    <div class="main-container">
+        <div class="container fluvial-monitor">
+            <h1><span class="icon">🌊</span> Monitor Fluvial</h1>
+            <div class="grafico-container" style="height: 250px;"> <canvas id="graficoFluvial"></canvas>
+            </div>
+            <div>
+                <p>Nível Atual: <strong id="nivel">--</strong> cm</p>
+                <p>Porcentagem: <strong id="porcentagem">--</strong>%</p>
+                <p>Status: <strong id="status">--</strong></p>
+            </div>
+            <div id="rainAlert" style="display: none;"></div> <button id="alarmeBtn" onclick="toggleAlarme()"><span class="icon">🔇</span> Ativar Alarmes</button>
+        </div>
+
+        <div class="container weather-monitor">
+            <h1><span class="icon">☀️</span> Consulta Climática</h1>
+
+            <div class="clima-section fixed-weather">
+                <h2>Clima em Novo Horizonte, SP</h2>
+                <div id="fixedWeatherResult"><p>Carregando...</p></div>
+            </div>
+
+            <div class="clima-section searchable-weather">
+                <h2><span class="icon">🔍</span> Buscar outra localidade</h2>
+                <input type="text" id="cityInput" placeholder="Digite o nome da cidade">
+                <button onclick="getWeatherSearchable()" class="search-btn">Buscar</button>
+                <div id="searchableWeatherResult"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
