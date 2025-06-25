@@ -1,53 +1,60 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <title>Monitor Fluvial & Clima PWA</title>
+    <title>Monitor Fluvial & Clima</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="manifest" href="/manifest.json">
+    <!-- A tag <link rel="manifest" href="/manifest.json"> foi removida para converter para um site tradicional -->
     <meta name="theme-color" content="#0056b3"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Adicione o SDK do Firebase AQUI, antes do seu script principal.
+         Estas bibliotecas permitem que seu site se comunique com o Firebase. -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
     <style>
+        /* Estilos CSS para o layout e aparência do site */
         body {
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Inter', sans-serif; /* Fonte Inter para um visual moderno */
             margin: 0;
             padding: 15px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            background: #e9ecef;
-            color: #333;
+            align-items: center; /* Centraliza o conteúdo horizontalmente */
+            gap: 20px; /* Espaçamento entre os containers principais */
+            background: #e9ecef; /* Cor de fundo suave */
+            color: #333; /* Cor de texto padrão */
         }
         .main-container {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha em telas menores */
             gap: 20px;
             width: 100%;
-            max-width: 1200px;
-            justify-content: center;
+            max-width: 1200px; /* Largura máxima para o conteúdo para não esticar muito em telas grandes */
+            justify-content: center; /* Centraliza os containers dentro do main-container */
         }
         .container {
-            background: #ffffff;
+            background: #ffffff; /* Fundo branco para os cards */
             padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transition: background 0.5s ease;
-            flex: 1;
-            min-width: 320px;
+            border-radius: 12px; /* Cantos arredondados */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); /* Sombra suave para profundidade */
+            transition: background 0.5s ease; /* Transição suave para mudança de cor de fundo */
+            flex: 1; /* Permite que os containers cresçam e ocupem o espaço disponível */
+            min-width: 320px; /* Largura mínima para responsividade em dispositivos menores */
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* Organiza o conteúdo verticalmente dentro do container */
         }
         .container h1, .container h2 {
-            color: #0056b3;
+            color: #0056b3; /* Azul escuro para títulos */
             margin-top: 0;
-            border-bottom: 2px solid #0056b3;
+            border-bottom: 2px solid #0056b3; /* Linha azul sob os títulos */
             padding-bottom: 10px;
             margin-bottom: 15px;
         }
         #alarmeBtn {
             padding: 12px 22px;
-            background: #28a745;
+            background: #28a745; /* Verde para o botão de ativar alarmes */
             color: white;
             border: none;
             border-radius: 8px;
@@ -58,30 +65,34 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 8px; /* Espaçamento entre ícone e texto do botão */
         }
         #alarmeBtn:hover {
-            background: #218838;
+            background: #218838; /* Escurece no hover */
         }
-        .alarme-ativo { background: #dc3545 !important; }
-        .alarme-ativo:hover { background: #c82333 !important; }
+        .alarme-ativo {
+            background: #dc3545 !important; /* Vermelho para alarme ativo, sobrescreve o verde */
+        }
+        .alarme-ativo:hover {
+            background: #c82333 !important; /* Escurece o vermelho no hover */
+        }
         .grafico-container {
             padding: 0;
             border-radius: 8px;
             margin: 20px 0;
-            background: #f8f9fa;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+            background: #f8f9fa; /* Fundo sutil para o gráfico */
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.05); /* Sombra interna para o gráfico */
         }
         .clima-section {
             margin-top: 15px;
             padding: 20px;
             background: #f8f9fa;
             border-radius: 8px;
-            border: 1px solid #dee2e6;
+            border: 1px solid #dee2e6; /* Borda suave */
         }
         .clima-section h2 {
             font-size: 1.2em;
-            color: #007bff;
+            color: #007bff; /* Azul para subtítulos de clima */
             border-bottom: none;
             margin-bottom: 10px;
         }
@@ -90,12 +101,12 @@
             margin: 8px 0;
             border: 1px solid #ced4da;
             border-radius: 6px;
-            width: calc(100% - 22px);
-            box-sizing: border-box;
+            width: calc(100% - 22px); /* Ajusta largura considerando padding e border */
+            box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura total */
         }
         button.search-btn {
             padding: 10px 18px;
-            background: #007bff;
+            background: #007bff; /* Azul para o botão de busca */
             color: white;
             border: none;
             border-radius: 6px;
@@ -104,11 +115,11 @@
             margin-top: 5px;
         }
         button.search-btn:hover {
-            background: #0056b3;
+            background: #0056b3; /* Escurece no hover */
         }
         #weatherResult p, #fixedWeatherResult p {
             margin: 8px 0;
-            line-height: 1.6;
+            line-height: 1.6; /* Espaçamento entre linhas */
         }
         #rainAlert {
             padding: 10px;
@@ -118,195 +129,200 @@
             font-weight: bold;
         }
         .rain-detected {
-            background-color: #cfe2ff;
-            color: #004085;
+            background-color: #cfe2ff; /* Azul claro para alerta de chuva */
+            color: #004085; /* Azul escuro para texto do alerta */
             border: 1px solid #b8daff;
         }
+        /* Estilos para ícones (simulados com texto/emojis) */
         .icon {
             margin-right: 8px;
             font-size: 1.1em;
         }
 
-               @media (max-width: 768px) {
+        /* Ajustes de responsividade para telas menores */
+        @media (max-width: 768px) {
             .main-container {
-                flex-direction: column;
-                align-items: stretch;
+                flex-direction: column; /* Empilha os containers verticalmente */
+                align-items: stretch; /* Estica os itens para ocupar a largura total */
             }
             .container {
-                min-width: unset;
-                width: 100%;
+                min-width: unset; /* Remove a largura mínima para melhor ajuste */
+                width: 100%; /* Ocupa 100% da largura disponível */
             }
         }
     </style>
     <script>
-           if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                              navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => {
-                        console.log('Service Worker registrado com sucesso:', registration);
-                    })
-                    .catch(error => {
-                        console.error('Falha no registro do Service Worker:', error);
-                    });
+        // O código de registro do Service Worker foi removido para este ser um site web tradicional.
+
+        // --- Configuração do Firebase para o Site ---
+        // <<<<< SUBSTITUA ESTE OBJETO firebaseConfig PELO QUE VOCÊ COPIOU DO CONSOLE DO FIREBASE (PASSO 1.3) >>>>>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCM_qPmpldWMIE1MGA_IBC6BztpImNNeiY", // Exemplo: "AIzaSyC_YOUR_API_KEY_HERE"
+          authDomain: "monitor-de-enchentes.firebaseapp.com", // Exemplo: "monitor-fluvial-tcc.firebaseapp.com"
+          projectId: "monitor-de-enchentes", // Exemplo: "monitor-fluvial-tcc"
+          storageBucket: "monitor-de-enchentes.firebasestorage.app",
+          messagingSenderId: "1043144902723",
+          appId: "1:1043144902723:web:cfcc181398e78680b3ecf6",
+          databaseURL: "https://monitor-de-enchentes-default-rtdb.firebaseio.com" // Exemplo: "https://monitor-fluvial-tcc-default-rtdb.firebaseio.com"
+        };
+
+        // Inicializa o Firebase com as credenciais do seu projeto
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database(); // Obtém uma referência para o Realtime Database
+
+        // --- Variáveis Globais do Site ---
+        let fluvialChart; // Objeto Chart.js para o gráfico fluvial
+        let historicoGrafico = []; // Array para armazenar o histórico de dados do nível do rio para o gráfico
+        let alarmeAtivo = false; // Flag para controlar se o alarme está ativado
+        let audioCtx; // Contexto de áudio para geração de sons de alarme
+        let oscillator; // Objeto oscilador para gerar tons de alarme
+        const apiKeyOpenWeather = "e94e44b2281dc3ead1df4f95175b95a5"; // Chave da API OpenWeatherMap para consulta climática
+
+        // Função para atualizar a cor de fundo do container fluvial com base na porcentagem do nível do rio
+        function atualizarCorFundoStatus(porcentagem) {
+            const container = document.querySelector('.container.fluvial-monitor');
+            if (!container) return; // Sai da função se o container não for encontrado
+
+            // Define gradientes de cor diferentes para cada faixa de porcentagem do nível do rio
+            if (porcentagem < 50) {
+                container.style.background = 'linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%)'; // Verde claro para "Normal"
+            } else if (porcentagem < 75) {
+                container.style.background = 'linear-gradient(135deg, #fffde7 0%, #ffffff 100%)'; // Amarelo claro para "Atenção"
+            } else if (porcentagem < 90) {
+                container.style.background = 'linear-gradient(135deg, #fff3e0 0%, #ffffff 100%)'; // Laranja claro para "Alerta"
+            } else {
+                container.style.background = 'linear-gradient(135deg, #ffebee 0%, #ffffff 100%)'; // Vermelho claro para "Crítico" / "Alagamento"
+            }
+        }
+
+        // Função para tocar o alarme sonoro com base no nível do rio
+        function tocarAlarme(nivel) {
+            if (!alarmeAtivo || !audioCtx) return; // Só toca se o alarme estiver ativo e o contexto de áudio existir
+
+            // Para o oscilador anterior, se houver, para evitar sobreposição de sons
+            if (oscillator) {
+                try { oscillator.stop(); } catch (e) {console.error("Erro ao parar oscilador:", e);}
+                oscillator.disconnect(); // Desconecta o oscilador do destino de áudio
+            }
+
+            oscillator = audioCtx.createOscillator(); // Cria um novo oscilador
+            const gainNode = audioCtx.createGain(); // Cria um nó de ganho para controlar o volume
+            gainNode.gain.value = 0.15; // Define um volume reduzido para o alarme
+
+            let freq = 440;    // Frequência base em Hz
+            let duration = 0.5; // Duração base do tom em segundos
+            let type = 'sine'; // Tipo de onda padrão (senoidal)
+
+            // Ajusta a frequência, duração e tipo de onda do alarme com base no nível do rio
+            switch (true) {
+                case (nivel >= 100):
+                    freq = 1000; duration = 0.2; type = 'square'; break; // Sons mais agudos e curtos para Alagamento
+                case (nivel >= 90):
+                    freq = 800; duration = 0.3; type = 'sawtooth'; break; // Sons médios para Crítico
+                case (nivel >= 75):
+                    freq = 600; duration = 0.4; break; // Sons mais suaves para Alerta
+                case (nivel >= 50):
+                    freq = 400; duration = 0.5; break; // Sons graves para Atenção
+                default: return; // Não toca alarme para níveis normais
+            }
+
+            oscillator.type = type; // Define o tipo de onda do oscilador
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime); // Define a frequência no tempo atual
+
+            oscillator.connect(gainNode).connect(audioCtx.destination); // Conecta o oscilador ao nó de ganho e ao destino de áudio
+            oscillator.start(); // Inicia a reprodução do som
+            try { oscillator.stop(audioCtx.currentTime + duration); } catch (e) {console.error("Erro ao parar oscilador:", e);} // Para o som após a duração definida
+        }
+
+        // Função para atualizar os dados fluviais LENDO DO FIREBASE REALTIME DATABASE
+        function atualizarDadosFluvial() {
+            // Caminho no Firebase onde os dados do sensor estão sendo enviados pelo ESP32
+            // <<<<< Certifique-se que este caminho (/dadosDoSensor) é o MESMO do seu ESP32 >>>>>
+            const sensorRef = db.ref('/dadosDoSensor');
+
+            // 'onValue' escuta por mudanças em tempo real no Firebase.
+            // Ele dispara uma vez com os dados iniciais e depois em cada mudança.
+            sensorRef.on('value', (snapshot) => {
+                const data = snapshot.val(); // Obtém o valor completo do snapshot (os dados enviados pelo ESP32)
+
+                // Verifica se há dados. Se não houver, exibe uma mensagem de espera.
+                if (!data) {
+                    console.log("Nenhum dado encontrado no Firebase Realtime Database. Aguardando dados do sensor...");
+                    document.getElementById('nivel').textContent = '--';
+                    document.getElementById('porcentagem').textContent = '--';
+                    document.getElementById('status').innerHTML = 'Aguardando dados do sensor...';
+                    document.getElementById('rainAlert').style.display = 'none';
+                    return;
+                }
+
+                // Extrai e converte os dados recebidos do Firebase
+                const nivelAtualCm = parseFloat(data.nivel_cm);
+                const nivelAtualPorcentagem = parseFloat(data.porcentagem);
+                const statusTexto = data.status;
+                const rainDetected = data.rain_detected; // Espera-se que seja um booleano (true/false) do Firebase
+
+                // Lógica para verificar se o nível do rio está subindo para o efeito visual do gráfico
+                let subindo = false;
+                if (historicoGrafico.length > 0) {
+                    const nivelAnteriorPorcentagem = historicoGrafico[historicoGrafico.length - 1];
+                    if (nivelAtualPorcentagem > nivelAnteriorPorcentagem) {
+                        subindo = true;
+                    }
+                }
+
+                historicoGrafico.push(nivelAtualPorcentagem);
+                if (historicoGrafico.length > 30) historicoGrafico.shift(); // Mantém 30 pontos no gráfico
+
+                fluvialChart.data.datasets[0].data = historicoGrafico;
+
+                // Atualiza preenchimento do gráfico (sombra d'água)
+                if (subindo && nivelAtualPorcentagem > 0) {
+                    fluvialChart.data.datasets[0].fill = 'start';
+                    fluvialChart.data.datasets[0].backgroundColor = 'rgba(0, 0, 139, 0.4)'; // Azul semi-transparente para indicar "água subindo"
+                } else {
+                    fluvialChart.data.datasets[0].fill = false; // Sem preenchimento se não estiver subindo
+                }
+                fluvialChart.update('none'); // Atualiza o gráfico sem animação para suavidade
+
+                // Atualiza os elementos HTML com os dados mais recentes
+                document.getElementById('nivel').textContent = nivelAtualCm.toFixed(1);
+                document.getElementById('porcentagem').textContent = nivelAtualPorcentagem.toFixed(1);
+                document.getElementById('status').innerHTML = statusTexto; // Usa innerHTML para renderizar emojis
+
+                // Atualiza a cor de fundo do container fluvial com base no status do rio
+                atualizarCorFundoStatus(nivelAtualPorcentagem);
+
+                // Ativa o alarme sonoro se o nível for de atenção ou superior e o alarme estiver ativado
+                if (nivelAtualPorcentagem >= 50 && alarmeAtivo) {
+                    tocarAlarme(nivelAtualPorcentagem);
+                }
+
+                // Atualiza o alerta de umidade com base nos dados do sensor de chuva
+                const rainAlertElement = document.getElementById('rainAlert');
+                if (rainDetected) {
+                    rainAlertElement.textContent = "💧 Umidade detectada!";
+                    rainAlertElement.className = 'rain-detected'; // Adiciona classe para estilo visual de alerta
+                    rainAlertElement.style.display = 'block'; // Mostra o alerta
+                } else {
+                    rainAlertElement.style.display = 'none'; // Esconde o alerta se não houver chuva
+                }
+            }, (errorObject) => {
+                // Trata erros na leitura do Firebase
+                console.error("Erro ao ler dados do Firebase: " + errorObject.name + " - " + errorObject.message);
+                document.getElementById('status').innerHTML = 'Erro ao carregar dados! ❌'; // Exibe mensagem de erro na UI
             });
         }
 
-        let fluvialChart;
-        let historicoGrafico = []; 
-        let alarmeAtivo = false;
-        let audioCtx;
-        let oscillator;
-        const apiKeyOpenWeather = "e94e44b2281dc3ead1df4f95175b95a5"; // Chave da API OpenWeatherMap
-
-        // Variáveis para simulação de dados do ESP32
-        let simulatedNivelRio = 30.0;
-        let simulatedRainDetected = false;
-        let lastRainToggleTime = Date.now();
-        const rainToggleInterval = 15000; 
-
-        // Função para simular os dados do ESP32
-        function getSimulatedFluvialData() {
-            // Simula o nível do rio com pequenas variações
-            simulatedNivelRio += (Math.random() - 0.5) * 2; // Variação de -1 a +1 cm
-            simulatedNivelRio = Math.max(0, Math.min(60, simulatedNivelRio)); // Limita entre 0 e 60 cm
-
-            // Simula a detecção de chuva
-            if (Date.now() - lastRainToggleTime > rainToggleInterval) {
-                simulatedRainDetected = !simulatedRainDetected;
-                lastRainToggleTime = Date.now();
-            }
-
-            const alturaSensor = 66.0; // Distância do sensor ao fundo do rio/canal quando vazio 
-            const alturaMaxima = 40.0; // Altura máxima considerada normal antes de transbordar 
-
-            const percentualNivel = (simulatedNivelRio / alturaMaxima) * 100;
-
-            let statusRio = "";
-            if(percentualNivel >= 100) {
-                statusRio = "ALAGAMENTO 🚨";
-            } else if(percentualNivel <= 50) {
-                statusRio = "NORMAL ✅";
-            } else if(percentualNivel <= 75) {
-                statusRio = "ATENÇÃO ⚠️";
-            } else if(percentualNivel <= 90) {
-                statusRio = "ALERTA ⚠️⚠️";
-            } else { // Entre 90% e 100%
-                statusRio = "CRÍTICO ❗❗";
-            }
-
-            return {
-                nivel_cm: simulatedNivelRio,
-                porcentagem: percentualNivel,
-                status: statusRio,
-                rain_detected: simulatedRainDetected
-            };
-        }
-
-        function atualizarCorFundoStatus(porcentagem) {
-            const container = document.querySelector('.container.fluvial-monitor');
-            if (!container) return;
-
-            if (porcentagem < 50) {
-                container.style.background = 'linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%)';
-            } else if (porcentagem < 75) {
-                container.style.background = 'linear-gradient(135deg, #fffde7 0%, #ffffff 100%)';
-            } else if (porcentagem < 90) {
-                container.style.background = 'linear-gradient(135deg, #fff3e0 0%, #ffffff 100%)';
-            } else {
-                container.style.background = 'linear-gradient(135deg, #ffebee 0%, #ffffff 100%)';
-            }
-        }
-
-        function tocarAlarme(nivel) {
-            if (!alarmeAtivo || !audioCtx) return;
-
-            if (oscillator) {
-                try { oscillator.stop(); } catch (e) {console.error("Erro ao parar oscilador:", e);}
-                oscillator.disconnect();
-            }
-
-            oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            gainNode.gain.value = 0.15;
-
-            let freq = 440;
-            let duration = 0.5;
-            let type = 'sine';
-
-            switch (true) {
-                case (nivel >= 100):
-                    freq = 1000; duration = 0.2; type = 'square'; break;
-                case (nivel >= 90):
-                    freq = 800; duration = 0.3; type = 'sawtooth'; break;
-                case (nivel >= 75):
-                    freq = 600; duration = 0.4; break;
-                case (nivel >= 50):
-                    freq = 400; duration = 0.5; break;
-                default: return;
-            }
-
-            oscillator.type = type;
-            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-            oscillator.connect(gainNode).connect(audioCtx.destination);
-            oscillator.start();
-            try { oscillator.stop(audioCtx.currentTime + duration); } catch (e) {console.error("Erro ao parar oscilador:", e);}
-        }
-
-        function atualizarDadosFluvial() {
-            // Usa dados simulados em vez de fetch para o PWA
-            const data = getSimulatedFluvialData();
-
-            const nivelAtualPorcentagem = parseFloat(data.porcentagem);
-            let subindo = false;
-
-            if (historicoGrafico.length > 0) {
-                const nivelAnteriorPorcentagem = historicoGrafico[historicoGrafico.length - 1];
-                if (nivelAtualPorcentagem > nivelAnteriorPorcentagem) {
-                    subindo = true;
-                }
-            }
-
-            historicoGrafico.push(nivelAtualPorcentagem);
-            if (historicoGrafico.length > 30) historicoGrafico.shift();
-
-            fluvialChart.data.datasets[0].data = historicoGrafico;
-
-            if (subindo && nivelAtualPorcentagem > 0) {
-                fluvialChart.data.datasets[0].fill = 'start';
-                fluvialChart.data.datasets[0].backgroundColor = 'rgba(0, 0, 139, 0.4)';
-            } else {
-                fluvialChart.data.datasets[0].fill = false;
-            }
-            fluvialChart.update('none');
-
-            document.getElementById('nivel').textContent = data.nivel_cm.toFixed(1);
-            document.getElementById('porcentagem').textContent = nivelAtualPorcentagem.toFixed(1);
-            document.getElementById('status').innerHTML = data.status;
-
-            atualizarCorFundoStatus(nivelAtualPorcentagem);
-
-            if (nivelAtualPorcentagem >= 50 && alarmeAtivo) {
-                tocarAlarme(nivelAtualPorcentagem);
-            }
-
-            const rainAlertElement = document.getElementById('rainAlert');
-            if (data.rain_detected) {
-                rainAlertElement.textContent = "💧 Umidade detectada!";
-                rainAlertElement.className = 'rain-detected';
-                rainAlertElement.style.display = 'block';
-            } else {
-                rainAlertElement.style.display = 'none';
-            }
-        }
-
+        // Função para alternar o estado do alarme sonoro (ativar/desativar)
         function toggleAlarme() {
+            // Inicializa AudioContext se ainda não estiver ativo
             if (!audioCtx) {
                 try {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 } catch (e) {
                     console.error("AudioContext não suportado.", e);
-                                     const modal = document.createElement('div');
+                    // Exibe um modal personalizado informando que o navegador não suporta áudio
+                    const modal = document.createElement('div');
                     modal.style.cssText = `
                         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
                         background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -321,30 +337,33 @@
                 }
             }
 
-            alarmeAtivo = !alarmeAtivo;
+            alarmeAtivo = !alarmeAtivo; // Inverte o estado do alarme (ativo/inativo)
             const alarmeBtn = document.getElementById('alarmeBtn');
-            alarmeBtn.classList.toggle('alarme-ativo', alarmeAtivo);
+            alarmeBtn.classList.toggle('alarme-ativo', alarmeAtivo); // Adiciona/remove classe para estilo visual do botão
+            // Atualiza o texto e ícone do botão com base no estado do alarme
             alarmeBtn.innerHTML = alarmeAtivo ? '<span class="icon">🔊</span> Alarmes Ativados' : '<span class="icon">🔇</span> Ativar Alarmes';
 
+            // Para o oscilador se o alarme for desativado
             if (!alarmeAtivo && oscillator) {
-                try { oscillator.stop(); } catch (e) {console.error("Erro ao parar oscilador:", e);}
+                try { oscillator.stop(); } catch (e) {}
                 oscillator.disconnect();
             }
         }
 
-        // Funções do Clima
+        // Funções do Clima (permanecem as mesmas, usando a API OpenWeatherMap)
         async function fetchWeatherData(city, elementId) {
             const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKeyOpenWeather}&units=metric&lang=pt_br`;
             const resultElement = document.getElementById(elementId);
-            resultElement.innerHTML = '<p>Carregando dados climáticos...</p>';
+            resultElement.innerHTML = '<p>Carregando dados climáticos...</p>'; // Exibe mensagem de carregamento
 
             try {
-                const response = await fetch(url);
-                if (!response.ok) {
+                const response = await fetch(url); // Faz a requisição à API OpenWeatherMap
+                if (!response.ok) { // Verifica se a resposta HTTP foi bem-sucedida
                     if (response.status === 404) throw new Error("Cidade não encontrada.");
                     throw new Error(`Erro HTTP: ${response.status}`);
                 }
-                const data = await response.json();
+                const data = await response.json(); // Converte a resposta para JSON
+                // Atualiza o elemento HTML com os dados climáticos recebidos
                 resultElement.innerHTML = `
                     <p><span class="icon">🌡️</span> Temperatura: ${data.main.temp.toFixed(1)}°C (Sensação: ${data.main.feels_like.toFixed(1)}°C)</p>
                     <p><span class="icon">☁️</span> Condição: ${data.weather[0].description}</p>
@@ -353,79 +372,83 @@
                     <p><span class="icon">🧭</span> Pressão: ${data.main.pressure} hPa</p>
                 `;
             } catch (error) {
+                // Trata erros na busca de dados climáticos
                 resultElement.innerHTML = `<p style="color: red;">Erro: ${error.message}</p>`;
                 console.error(`Erro ao buscar clima para ${city}:`, error);
             }
         }
 
+        // Função para buscar dados climáticos de uma cidade digitada pelo usuário
         function getWeatherSearchable() {
-            const city = document.getElementById("cityInput").value;
-            if (city.trim() === "") {
+            const city = document.getElementById("cityInput").value; // Obtém o nome da cidade do campo de input
+            if (city.trim() === "") { // Verifica se o campo não está vazio
                 document.getElementById("searchableWeatherResult").innerHTML = `<p style="color: orange;">Por favor, digite o nome da cidade.</p>`;
                 return;
             }
-            fetchWeatherData(city, "searchableWeatherResult");
+            fetchWeatherData(city, "searchableWeatherResult"); // Chama a função para buscar os dados
         }
 
-        // Inicialização
+        // Função executada quando a janela (o site) é completamente carregada
         window.onload = function() {
-            // Gráfico Fluvial
+            // Inicialização do Gráfico Fluvial usando Chart.js
             const ctx = document.getElementById('graficoFluvial').getContext('2d');
             fluvialChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: Array(30).fill(''),
+                    labels: Array(30).fill(''), // Rótulos vazios para um gráfico de tempo real contínuo
                     datasets: [{
                         label: 'Nível do Rio (%)',
-                        data: historicoGrafico,
-                        borderColor: '#007bff',
+                        data: historicoGrafico, // Usa o array de histórico para os dados do gráfico
+                        borderColor: '#007bff', // Cor da linha do gráfico
                         borderWidth: 2.5,
-                        pointRadius: 3,
+                        pointRadius: 3, // Tamanho dos pontos no gráfico
                         pointBackgroundColor: '#007bff',
-                        tension: 0.3,
-                        fill: false,
+                        tension: 0.3, // Curvatura da linha (0 = reta, 1 = muito curva)
+                        fill: false, // Inicialmente sem preenchimento, controlado dinamicamente
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, // Gráfico responsivo
+                    maintainAspectRatio: false, // Não mantém a proporção (permite definir altura fixa)
                     animation: {
-                        duration: 800,
-                        easing: 'easeInOutQuart'
+                        duration: 800, // Duração da animação ao atualizar
+                        easing: 'easeInOutQuart' // Tipo de easing da animação
                     },
                     scales: {
                         y: {
                             min: 0,
-                            max: 120,
+                            max: 120, // Eixo Y vai de 0% a 120% (para mostrar transbordamento)
                             ticks: {
-                                stepSize: 20,
+                                stepSize: 20, // Intervalo dos rótulos no eixo Y
                                 color: '#555'
                             },
-                            grid: { color: 'rgba(0,0,0,0.08)' }
+                            grid: { color: 'rgba(0,0,0,0.08)' } // Linhas de grade suaves
                         },
                         x: {
-                            display: false,
+                            display: false, // Eixo X não é exibido (não precisamos de rótulos de tempo)
                             grid: { display: false }
                         }
                     },
                     plugins: {
                         legend: {
-                            labels: { color: '#333' }
+                            labels: { color: '#333' } // Cor dos rótulos da legenda
                         }
                     }
                 }
             });
 
+            // Inicia a escuta dos dados fluviais do Firebase.
+            // A função 'onValue' já atualiza em tempo real, então não precisamos de 'setInterval' aqui.
             atualizarDadosFluvial();
-            setInterval(atualizarDadosFluvial, 2500);
 
-            // Busca clima da cidade fixa (Novo Horizonte, SP)
+            // Busca os dados climáticos da cidade fixa (Novo Horizonte, SP)
             fetchWeatherData("Novo Horizonte, BR", "fixedWeatherResult");
 
-            // Adiciona listener para tecla Enter no campo de busca de cidade
+            // Adiciona um listener para o evento 'keypress' no campo de busca de cidade.
+            // Se a tecla "Enter" for pressionada, a função 'getWeatherSearchable()' é chamada.
             document.getElementById("cityInput").addEventListener("keypress", function(event) {
                 if (event.key === "Enter") {
-                    event.preventDefault();
+                    event.preventDefault(); // Impede o comportamento padrão do Enter (se houver algum formulário)
                     getWeatherSearchable();
                 }
             });
