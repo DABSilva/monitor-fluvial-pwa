@@ -2,9 +2,6 @@ const CACHE_NAME = 'fluvial-monitor-pwa-cache-v1';
 const urlsToCache = [
     '/',
     '/index.html',
-    // Adicione URLs de ícones aqui, se você os tiver em um diretório /icons
-    // Exemplo: '/icons/icon-192x192.png',
-    // '/icons/icon-512x512.png',
     'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
@@ -18,32 +15,28 @@ self.addEventListener('install', (event) => {
     );
 });
 
-self.addEventListener('fetch', (event) => {
-    // Para solicitações de dados da API OpenWeatherMap, use Network First
+self.addEventListener('fetch', (event) => {  
     if (event.request.url.includes('api.openweathermap.org')) {
         event.respondWith(
             fetch(event.request)
-                .then(response => {
-                    // Se a resposta for válida, clone-a e armazene no cache
+                .then(response => {                 
                     return caches.open(CACHE_NAME).then(cache => {
                         cache.put(event.request, response.clone());
                         return response;
                     });
                 })
-                .catch(() => {
-                    // Se a rede falhar, tente buscar do cache
+                .catch(() => {                    
                     return caches.match(event.request);
                 })
         );
-    } else {
-        // Para outros recursos (app shell), use Cache First
+    } else {     
         event.respondWith(
             caches.match(event.request)
                 .then((response) => {
                     if (response) {
-                        return response; // Retorna do cache se encontrado
+                        return response; 
                     }
-                    return fetch(event.request); // Caso contrário, busca da rede
+                    return fetch(event.request); 
                 })
         );
     }

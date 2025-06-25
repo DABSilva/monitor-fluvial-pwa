@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
-            font-family: 'Inter', sans-serif; /* Usando Inter como solicitado */
+            font-family: 'Inter', sans-serif; 
             margin: 0;
             padding: 15px;
             display: flex;
@@ -127,8 +127,7 @@
             font-size: 1.1em;
         }
 
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
+               @media (max-width: 768px) {
             .main-container {
                 flex-direction: column;
                 align-items: stretch;
@@ -140,11 +139,9 @@
         }
     </style>
     <script>
-        // Registra o Service Worker
-        if ('serviceWorker' in navigator) {
+           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Alterado o caminho do Service Worker para ser um caminho absoluto
-                navigator.serviceWorker.register('/service-worker.js')
+                              navigator.serviceWorker.register('/service-worker.js')
                     .then(registration => {
                         console.log('Service Worker registrado com sucesso:', registration);
                     })
@@ -155,7 +152,7 @@
         }
 
         let fluvialChart;
-        let historicoGrafico = []; // Histórico de dados para o gráfico fluvial
+        let historicoGrafico = []; 
         let alarmeAtivo = false;
         let audioCtx;
         let oscillator;
@@ -165,7 +162,7 @@
         let simulatedNivelRio = 30.0;
         let simulatedRainDetected = false;
         let lastRainToggleTime = Date.now();
-        const rainToggleInterval = 15000; // Alterna chuva a cada 15 segundos (para simulação)
+        const rainToggleInterval = 15000; 
 
         // Função para simular os dados do ESP32
         function getSimulatedFluvialData() {
@@ -179,8 +176,8 @@
                 lastRainToggleTime = Date.now();
             }
 
-            const alturaSensor = 66.0; // Distância do sensor ao fundo do rio/canal quando vazio (cm)
-            const alturaMaxima = 40.0; // Altura máxima considerada normal antes de transbordar (cm)
+            const alturaSensor = 66.0; // Distância do sensor ao fundo do rio/canal quando vazio 
+            const alturaMaxima = 40.0; // Altura máxima considerada normal antes de transbordar 
 
             const percentualNivel = (simulatedNivelRio / alturaMaxima) * 100;
 
@@ -205,7 +202,6 @@
             };
         }
 
-        // Funções do Monitor Fluvial
         function atualizarCorFundoStatus(porcentagem) {
             const container = document.querySelector('.container.fluvial-monitor');
             if (!container) return;
@@ -310,8 +306,7 @@
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 } catch (e) {
                     console.error("AudioContext não suportado.", e);
-                    // Usar um modal personalizado em vez de alert()
-                    const modal = document.createElement('div');
+                                     const modal = document.createElement('div');
                     modal.style.cssText = `
                         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
                         background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -421,7 +416,6 @@
                 }
             });
 
-            // Busca dados fluviais simulados e configura intervalo
             atualizarDadosFluvial();
             setInterval(atualizarDadosFluvial, 2500);
 
